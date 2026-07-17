@@ -670,6 +670,18 @@
     return found ? found.id : null;
   }
 
+  // Se il gist non era ancora stato creato quando il dispositivo si è collegato,
+  // riprova a cercarlo (es. telefono collegato prima del primo salvataggio dal PC).
+  async function ensureGistId(cfg) {
+    if (cfg.gistId) return cfg.gistId;
+    const found = await findExistingGist(cfg.token);
+    if (found) {
+      cfg.gistId = found;
+      saveSyncConfig(cfg);
+    }
+    return cfg.gistId;
+  }
+
   async function connectCloud(token) {
     const userRes = await fetch('https://api.github.com/user', { headers: gistHeaders(token) });
     if (userRes.status === 401) throw new Error('Token non valido o scaduto');
@@ -695,6 +707,7 @@
         public: false,
         files: { [GIST_FILENAME]: { content: JSON.stringify(payload) } }
       });
+      await ensureGistId(cfg).catch(() => {});
       let res = null;
       if (cfg.gistId) {
         res = await fetch('https://api.github.com/gists/' + cfg.gistId, { method: 'PATCH', headers: gistHeaders(cfg.token), body });
@@ -750,8 +763,9 @@
   async function cloudLoad() {
     const cfg = getSyncConfig();
     if (!cfg.token) { toast('Configura prima la sincronizzazione in Impostazioni', 'err'); return; }
-    if (!cfg.gistId) { toast('Nessun backup cloud trovato: salva prima da uno dei dispositivi', 'err'); return; }
     try {
+      await ensureGistId(cfg);
+      if (!cfg.gistId) { toast('Nessun backup cloud trovato: salva prima da uno dei dispositivi', 'err'); return; }
       const payload = await fetchCloudPayload(cfg);
       const when = payload.savedAt ? fmtDateTime(payload.savedAt) : 'data sconosciuta';
       openConfirm(
@@ -776,8 +790,10 @@
 
   async function checkCloudOnStartup() {
     const cfg = getSyncConfig();
-    if (!cfg.token || !cfg.gistId) return;
+    if (!cfg.token) return;
     try {
+      await ensureGistId(cfg);
+      if (!cfg.gistId) return;
       const payload = await fetchCloudPayload(cfg);
       const cloudAt = payload.savedAt ? new Date(payload.savedAt).getTime() : 0;
       const localAt = state.settings.lastModified ? new Date(state.settings.lastModified).getTime() : 0;
