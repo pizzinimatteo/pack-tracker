@@ -784,6 +784,9 @@
   function scheduleAutoCloudSave() {
     const cfg = getSyncConfig();
     if (!cfg.token || !cfg.auto) return;
+    // Protezione: un dispositivo appena configurato (senza obiettivi né transazioni) non deve
+    // sovrascrivere il backup cloud con dati vuoti. Il salvataggio manuale resta sempre possibile.
+    if (state.goals.length === 0 && state.transactions.length === 0) return;
     clearTimeout(autoCloudTimer);
     autoCloudTimer = setTimeout(() => { cloudSave(true); }, 4000);
   }
