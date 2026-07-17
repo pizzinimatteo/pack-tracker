@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'pac-vwce-v4';
+const CACHE_VERSION = 'pac-vwce-v5';
 const PRECACHE_URLS = [
   './',
   './index.html',
